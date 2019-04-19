@@ -1,0 +1,61 @@
+diff -Nrup linux-5.0.7.origin/fs/proc/base.c linux-5.0.7/fs/proc/base.c
+--- linux-5.0.7.origin/fs/proc/base.c	2019-04-18 15:17:09.185664619 +0800
++++ linux-5.0.7/fs/proc/base.c	2019-04-18 15:25:10.442585528 +0800
+@@ -2924,6 +2924,13 @@ static int proc_stack_depth(struct seq_f
+ }
+ #endif /* CONFIG_STACKLEAK_METRICS */
+ 
++static int proc_pid_my_ctx(struct seq_file *m, struct pid_namespace *ns,
++				struct pid *pid, struct task_struct *task)
++{
++	seq_printf(m, "%d\n", task->ctx);
++	return 0;
++}
++
+ /*
+  * Thread groups
+  */
+@@ -2944,6 +2951,7 @@ static const struct pid_entry tgid_base_
+ 	ONE("status",     S_IRUGO, proc_pid_status),
+ 	ONE("personality", S_IRUSR, proc_pid_personality),
+ 	ONE("limits",	  S_IRUGO, proc_pid_limits),
++	ONE("ctx",        S_IRUGO, proc_pid_my_ctx),
+ #ifdef CONFIG_SCHED_DEBUG
+ 	REG("sched",      S_IRUGO|S_IWUSR, proc_pid_sched_operations),
+ #endif
+diff -Nrup linux-5.0.7.origin/include/linux/sched.h linux-5.0.7/include/linux/sched.h
+--- linux-5.0.7.origin/include/linux/sched.h	2019-04-18 15:27:36.616604205 +0800
++++ linux-5.0.7/include/linux/sched.h	2019-04-19 14:59:17.608968541 +0800
+@@ -612,6 +612,9 @@ struct task_struct {
+ 	unsigned int			flags;
+ 	unsigned int			ptrace;
+ 
++	/* Count how many times the task running on the CPU. */
++	unsigned int			ctx;
++
+ #ifdef CONFIG_SMP
+ 	struct llist_node		wake_entry;
+ 	int				on_cpu;
+diff -Nrup linux-5.0.7.origin/kernel/fork.c linux-5.0.7/kernel/fork.c
+--- linux-5.0.7.origin/kernel/fork.c	2019-04-18 15:17:46.186382713 +0800
++++ linux-5.0.7/kernel/fork.c	2019-04-19 15:08:34.581255843 +0800
+@@ -1979,6 +1979,8 @@ static __latent_entropy struct task_stru
+ 		p->group_leader = p;
+ 		p->tgid = p->pid;
+ 	}
++	
++	p->ctx = 0;
+ 
+ 	p->nr_dirtied = 0;
+ 	p->nr_dirtied_pause = 128 >> (PAGE_SHIFT - 10);
+diff -Nrup linux-5.0.7.origin/kernel/sched/core.c linux-5.0.7/kernel/sched/core.c
+--- linux-5.0.7.origin/kernel/sched/core.c	2019-04-18 15:17:47.010461389 +0800
++++ linux-5.0.7/kernel/sched/core.c	2019-04-19 15:04:00.263708801 +0800
+@@ -3464,6 +3464,7 @@ static void __sched notrace __schedule(b
+ 	if (likely(prev != next)) {
+ 		rq->nr_switches++;
+ 		rq->curr = next;
++		rq->curr->ctx++;
+ 		/*
+ 		 * The membarrier system call requires each architecture
+ 		 * to have a full memory barrier after updating
