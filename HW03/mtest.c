@@ -126,12 +126,22 @@ static unsigned long hex2uint(char hex) {
 		return hex - 'a' + 10;
 	return 0;
 }
-static unsigned long long get_va(char **str) {
+static unsigned long long get_hex(char **str) {
 	unsigned long long ret = 0;
 
 	while (is_valid_hex(**str))
 		ret = (ret<<4) + hex2uint(*((*str)++));
 	return ret;
+}
+static bool my_get_val(char **str, unsigned long long *val) {
+	// Hex value must start with '0x'.
+	if (strncmp(*str, "0x", 2) == 0) {
+		*str += 2;
+		// Get the hex value..
+		*val = get_hex(str);
+		return true;
+	}
+	else return false;
 }
 
 /*
@@ -177,20 +187,13 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 		pos += 8;
 		actions = 2;
 		pos = skip_spaces(pos);
-		// Address must start with '0x'.
-		if (strncmp(pos, "0x", 2) == 0) {
-			pos += 2;
-			// Get address.
-			va = get_va(&pos);
-		}
-		else
+		if (!my_get_val(&pos, &va))
 			goto out;
 	}
 	// writeval
 	else if (strncmp(pos, "writeval", 8) == 0) {
 		pos += 8;
 		actions = 3;
-		printk(KERN_INFO "[mtest] Get writeval.\n");
 	}
 	else {
 		printk(KERN_INFO "Invalid input!!\n");
