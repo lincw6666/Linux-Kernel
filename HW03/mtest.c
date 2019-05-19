@@ -21,43 +21,50 @@ static int my_proc_open(struct inode *inode, struct file *file) {
 	return single_open(file, my_proc_show, NULL);
 }
 
-/*
-// Open file in kernel module.
-struct file *file_open(const char *path, int flags) {
-	struct file *filp = NULL;
-	mm_segment_t oldfs;
-	int err = 0;
+static unsigned long long my_va2pa(const unsigned long long va) {
+	struct task_struct *task = current;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	struct page *page;
+	unsigned long long pa;
 
-	oldfs = get_fs();
-	set_fs(get_ds());
-	filp = filp_open(path, flags, 0);
-	set_fs(oldfs);
-	if (IS_ERR(filp)) {
-		err = PTR_ERR(filp);
-		return NULL;
-	}
-	return filp;
+	if (!task) return 0;
+	
+	pgd = pgd_offset(task->mm, va);
+	if (pgd_none(*pgd) || pgd_bad(*pgd))
+		return 0;
+	pud = pud_offset((p4d_t *)pgd, va);
+	if (pud_none(*pud) || pud_bad(*pud))
+		return 0;
+	pmd = pmd_offset(pud, va);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return 0;
+	pte = pte_offset_map(pmd, va);
+	if (pte_none(*pte))
+		return 0;
+	if (!(page = pte_page(*pte)))
+		return 0;
+	pa = page_to_phys(page) | (va & ~PAGE_MASK);
+	pte_unmap(pte);
+	
+	return pa;
 }
 
-// Close file in kernel module.
-void file_close(struct file *file) {
-	filp_close(file, NULL);
+/* Translate virtual addr (va) to physical addr (pa). */
+static void my_findpage(const unsigned long long va) {
+	// Get current task.
+	unsigned long long pa = my_va2pa(va);
+
+	printk(KERN_INFO "-----------------------------------------\n");
+	printk(KERN_CONT "findpage for addr=%#llx:\n", va);
+	
+	if (pa)
+		printk(KERN_CONT "vma %#llx -> pma %#llx\n", va, pa);
+	else
+		printk(KERN_INFO "Translation not found.\n");
 }
-
-// Read from file in kernel module.
-int file_read(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size) {
-	mm_segment_t oldfs;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	ret = kernel_read(file, data, size, &offset);
-
-	set_fs(oldfs);
-	return ret;
-}
-*/
 
 #ifdef __HAVE_ARCH_GATE_AREA
 static const char *my_gate_vma_name(struct vm_area_struct *vma) {
@@ -107,6 +114,26 @@ static void my_show_vma(void) {
 	}
 }
 
+static bool is_valid_hex(char hex) {
+	if (('0' <= hex && hex <= '9') || ('a' <= hex && hex <= 'f'))
+		return true;
+	return false;
+}
+static unsigned long hex2uint(char hex) {
+	if ('0' <= hex && hex <= '9')
+		return hex - '0';
+	else if ('a' <= hex && hex <= 'f')
+		return hex - 'a' + 10;
+	return 0;
+}
+static unsigned long long get_va(char **str) {
+	unsigned long long ret = 0;
+
+	while (is_valid_hex(**str))
+		ret = (ret<<4) + hex2uint(*((*str)++));
+	return ret;
+}
+
 /*
  * Write something to the proc file then get the output.
  * 
@@ -120,6 +147,10 @@ static void my_show_vma(void) {
  */
 static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos) {
 	char kbuf[64], *pos;
+	unsigned short actions = 0;	// 1: listvma
+								// 2: findpage
+								// 3: writeval
+	unsigned long long va = 0;	// For findpage && writeval
 	ssize_t ret;
 
 	// Only allow 64-bits of string to be written.
@@ -136,25 +167,44 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 
 	// What is being requested?
 	ret = -EINVAL;
+	// listvma
 	if (strncmp(pos, "listvma", 7) == 0) {
 		pos += 7;
-		my_show_vma();
+		actions = 1;
 	}
+	// findpage
 	else if (strncmp(pos, "findpage", 8) == 0) {
 		pos += 8;
-		printk(KERN_INFO "[mtest] Get findpage.\n");
+		actions = 2;
+		pos = skip_spaces(pos);
+		// Address must start with '0x'.
+		if (strncmp(pos, "0x", 2) == 0) {
+			pos += 2;
+			// Get address.
+			va = get_va(&pos);
+		}
+		else
+			goto out;
 	}
+	// writeval
 	else if (strncmp(pos, "writeval", 8) == 0) {
 		pos += 8;
+		actions = 3;
 		printk(KERN_INFO "[mtest] Get writeval.\n");
 	}
-	else
+	else {
+		printk(KERN_INFO "Invalid input!!\n");
 		goto out;
+	}
 
 	// Verify there is not trailing junk on the line.
 	pos = skip_spaces(pos);
 	if (*pos != '\0')
 		goto out;
+
+	// Do the action.
+	if (actions == 1) my_show_vma();
+	else if (actions == 2) my_findpage(va);
 
 	// Report a successful write.
 	*ppos = 0;	// Always write to the beginning of the file.
