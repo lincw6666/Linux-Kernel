@@ -61,7 +61,24 @@ static void my_findpage(const unsigned long long va) {
 	printk(KERN_CONT "findpage for addr=%#llx:\n", va);
 	
 	if (pa)
-		printk(KERN_CONT "vma %#llx -> pma %#llx\n", va, pa);
+		printk(KERN_INFO "vma %#llx -> pma %#llx\n", va, pa);
+	else
+		printk(KERN_INFO "Translation not found.\n");
+}
+
+/*
+ * Change the value in @va (need to be translated to pa first)
+ * to @val.
+ */
+static void my_writeval(const unsigned long long va, const unsigned long long val) {
+	// Get current task.
+	unsigned long long pa = my_va2pa(va);
+
+	printk(KERN_INFO "-----------------------------------------\n");
+	printk(KERN_CONT "writeval(write val=%#llx to addr=%#llx:\n", val, va);
+	if (pa) {
+		printk(KERN_CONT "write %#llx to address %#llx\n", val, pa);
+	}
 	else
 		printk(KERN_INFO "Translation not found.\n");
 }
@@ -164,6 +181,7 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 								// 2: findpage
 								// 3: writeval
 	unsigned long long va = 0;	// For findpage && writeval
+	unsigned long long val = 0;	// For writeval
 	ssize_t ret;
 
 	// Only allow 64-bits of string to be written.
@@ -189,6 +207,7 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 	else if (strncmp(pos, "findpage", 8) == 0) {
 		pos += 8;
 		actions = 2;
+		// Get virtual address.
 		if (!my_get_val(&pos, &va))
 			goto out;
 	}
@@ -196,6 +215,12 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 	else if (strncmp(pos, "writeval", 8) == 0) {
 		pos += 8;
 		actions = 3;
+		// Get virtual address.
+		if (!my_get_val(&pos, &va))
+			goto out;
+		// Get value that we want to change to.
+		if (!my_get_val(&pos, &val))
+			goto out;
 	}
 	else {
 		printk(KERN_INFO "Invalid input!!\n");
@@ -210,6 +235,7 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 	// Do the action.
 	if (actions == 1) my_show_vma();
 	else if (actions == 2) my_findpage(va);
+	else if (actions == 3) my_writeval(va, val);
 
 	// Report a successful write.
 	*ppos = 0;	// Always write to the beginning of the file.
