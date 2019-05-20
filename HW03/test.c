@@ -5,9 +5,9 @@
 #define MAX_INPUT_LEN (128)
 
 void show_val(const unsigned long long test1, const unsigned long long test2, const unsigned long long test3) {
-	printf("test1 = %llx, ", test1);
-	printf("test2 = %llx, ", test2);
-	printf("test3 = %llx\n", test3);
+	printf("test1 = %#llx, ", test1);
+	printf("test2 = %#llx, ", test2);
+	printf("test3 = %#llx\n", test3);
 }
 
 int main(void) {
@@ -21,6 +21,7 @@ int main(void) {
 		return -1;
 	}
 
+	show_val(test1, test2, test3);
 	printf("Addr of test1: %p\n", &test1);
 	printf("Addr of test2: %p\n", &test2);
 	printf("Addr of test3: %p\n", &test3);
@@ -32,10 +33,10 @@ int main(void) {
 			if (ch == '\n') {
 				input[now] = '\0';
 				fprintf(fp, "%s", input);
+				fflush(fp);
 				// Show value of test1-3 after 'writeval'.
 				if (strncmp(input, "writeval", 8) == 0)
 					show_val(test1, test2, test3);
-				fflush(fp);
 				now = 0, input[0] = '\0';
 			}
 			// Keep getting user input.
