@@ -4,17 +4,17 @@
 
 #define MAX_INPUT_LEN (128)
 
-void show_val(const unsigned long test1, const unsigned long test2, const unsigned long test3) {
-	printf("test1 = %lx, ", test1);
-	printf("test2 = %lx, ", test2);
-	printf("test3 = %lx\n", test3);
+void show_val(const unsigned long long test1, const unsigned long long test2, const unsigned long long test3) {
+	printf("test1 = %llx, ", test1);
+	printf("test2 = %llx, ", test2);
+	printf("test3 = %llx\n", test3);
 }
 
 int main(void) {
 	FILE *fp;
 	int now = 0;
 	char ch, input[MAX_INPUT_LEN+1];
-	unsigned long test1 = 0x11, test2 = 0x22, test3 = 0x33;
+	unsigned long long test1 = 0x11, test2 = 0x22, test3 = 0x33;
 
 	if (!(fp = fopen("/proc/mtest", "w"))) {
 		printf("Error! Can't open file: /proc/mtest!\n");
