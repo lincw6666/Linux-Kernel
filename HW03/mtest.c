@@ -115,7 +115,7 @@ static void my_show_vma(void) {
 }
 
 static bool is_valid_hex(char hex) {
-	if (('0' <= hex && hex <= '9') || ('a' <= hex && hex <= 'f'))
+	if (('0' <= hex && hex <= '9') || ('a' <= hex && hex <= 'f') || ('A' <= hex && hex <= 'F'))
 		return true;
 	return false;
 }
@@ -124,6 +124,8 @@ static unsigned long hex2uint(char hex) {
 		return hex - '0';
 	else if ('a' <= hex && hex <= 'f')
 		return hex - 'a' + 10;
+	else if ('A' <= hex && hex <= 'F')
+		return hex - 'A' + 10;
 	return 0;
 }
 static unsigned long long get_hex(char **str) {
@@ -134,6 +136,7 @@ static unsigned long long get_hex(char **str) {
 	return ret;
 }
 static bool my_get_val(char **str, unsigned long long *val) {
+	*str = skip_spaces(*str);
 	// Hex value must start with '0x'.
 	if (strncmp(*str, "0x", 2) == 0) {
 		*str += 2;
@@ -186,7 +189,6 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 	else if (strncmp(pos, "findpage", 8) == 0) {
 		pos += 8;
 		actions = 2;
-		pos = skip_spaces(pos);
 		if (!my_get_val(&pos, &va))
 			goto out;
 	}
