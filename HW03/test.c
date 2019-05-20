@@ -1,21 +1,29 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
 #define MAX_INPUT_LEN (128)
+
+void show_val(const unsigned long test1, const unsigned long test2, const unsigned long test3) {
+	printf("test1 = %lx, ", test1);
+	printf("test2 = %lx, ", test2);
+	printf("test3 = %lx\n", test3);
+}
 
 int main(void) {
 	FILE *fp;
 	int now = 0;
 	char ch, input[MAX_INPUT_LEN+1];
+	unsigned long test1 = 0x11, test2 = 0x22, test3 = 0x33;
 
 	if (!(fp = fopen("/proc/mtest", "w"))) {
 		printf("Error! Can't open file: /proc/mtest!\n");
 		return -1;
 	}
 
-	printf("Addr of now:   %p\n", &now);
-	printf("Addr of ch:    %p\n", &ch);
-	printf("Addr of input: %p\n", input);
+	printf("Addr of test1: %p\n", &test1);
+	printf("Addr of test2: %p\n", &test2);
+	printf("Addr of test3: %p\n", &test3);
 
 	input[0] = '\0';
 	while (true) {
@@ -24,6 +32,9 @@ int main(void) {
 			if (ch == '\n') {
 				input[now] = '\0';
 				fprintf(fp, "%s", input);
+				// Show value of test1-3 after 'writeval'.
+				if (strncmp(input, "writeval", 8) == 0)
+					show_val(test1, test2, test3);
 				fflush(fp);
 				now = 0, input[0] = '\0';
 			}
