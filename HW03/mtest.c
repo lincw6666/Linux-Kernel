@@ -4,6 +4,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>	// copy_from_user
 #include <linux/mm.h>		// vm_flags: VM_READ, VM_WRITE...
+#include <asm/io.h>
 
 MODULE_DESCRIPTION("Linux Kernel HW03: Memory Management");
 MODULE_LICENSE("GPL");
@@ -73,11 +74,14 @@ static void my_findpage(const unsigned long long va) {
 static void my_writeval(const unsigned long long va, const unsigned long long val) {
 	// Get current task.
 	unsigned long long pa = my_va2pa(va);
+	unsigned long long *kernel_va;
 
 	printk(KERN_INFO "-----------------------------------------\n");
 	printk(KERN_CONT "writeval(write val=%#llx to addr=%#llx:\n", val, va);
 	if (pa) {
 		printk(KERN_CONT "write %#llx to address %#llx\n", val, pa);
+		kernel_va = phys_to_virt(pa);
+		*kernel_va = val;
 	}
 	else
 		printk(KERN_INFO "Translation not found.\n");
@@ -222,10 +226,8 @@ static ssize_t my_proc_write(struct file *file, const char __user *buf, size_t c
 		if (!my_get_val(&pos, &val))
 			goto out;
 	}
-	else {
-		printk(KERN_INFO "Invalid input!!\n");
+	else
 		goto out;
-	}
 
 	// Verify there is not trailing junk on the line.
 	pos = skip_spaces(pos);
