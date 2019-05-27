@@ -34,8 +34,8 @@ int main(void) {
 				input[now] = '\0';
 				fprintf(fp, "%s", input);
 				fflush(fp);
-				// Show value of test1-3 after 'writeval'.
-				if (strncmp(input, "writeval", 8) == 0)
+				// Show test1-3's values if user enters "showval".
+				if (strncmp(input, "showval", 8) == 0)
 					show_val(test1, test2, test3);
 				now = 0, input[0] = '\0';
 			}
