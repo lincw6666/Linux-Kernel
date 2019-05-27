@@ -5,13 +5,13 @@
 - In this homework, we'll  create a  module  "mtest", which
   accepts three kinds of input: ***"listvma"***,  ***"findpage"***  and
   ***"writeval"***
-- ==**"listvma"**==
+- **"listvma"**
 	- List all virtual  memory  area  blocks of the current process in
 	  the format of start-addr end-addr permission.
-- ==**"findpage address"**==
+- **"findpage address"**
 	- Find the physical address which the given virtual address translated
 	  to.
-- ==**"writeval address value"**==
+- **"writeval address value"**
 	- Change the value in  the current process' virtual address to the
 	  given value.
 
