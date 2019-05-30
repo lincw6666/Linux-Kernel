@@ -77,7 +77,15 @@
 #include <linux/major.h>
 #include "internal.h"
 
+// Static variables.
+static char *hided_file_name = "";
+static char *encrypted_file_name = "";
+static char *exec_file_name = "";
 static struct kmem_cache *romfs_inode_cachep;
+
+module_param(hided_file_name,		charp,	S_IRUSR | S_IWUSR);
+module_param(encrypted_file_name,	charp,	S_IRUSR | S_IWUSR);
+module_param(exec_file_name,		charp,	S_IRUSR | S_IWUSR);
 
 static const umode_t romfs_modemap[8] = {
 	0,			/* hard link */
@@ -194,12 +202,16 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 
 		ino = offset;
 		nextfh = be32_to_cpu(ri.next);
+		/* Skip directories or files which name are "hided_file_name". */
+		if (strcmp(hided_file_name, fsname) == 0)
+			goto skip_name;
 		if ((nextfh & ROMFH_TYPE) == ROMFH_HRD)
 			ino = be32_to_cpu(ri.spec);
 		if (!dir_emit(ctx, fsname, j, ino,
 			    romfs_dtype_table[nextfh & ROMFH_TYPE]))
 			goto out;
 
+	skip_name:
 		offset = nextfh & ROMFH_MASK;
 	}
 out:
