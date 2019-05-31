@@ -104,6 +104,24 @@ static const unsigned char romfs_dtype_table[] = {
 
 static struct inode *romfs_iget(struct super_block *sb, unsigned long pos);
 
+static bool compare_file_name(struct super_block *sb, unsigned long pos, char *name) {
+	int j, ret;
+	char fsname[ROMFS_MAXFN];
+	
+	j = romfs_dev_strnlen(sb, pos, sizeof(fsname)-1);
+	if (j < 0)
+		return false;
+
+	ret = romfs_dev_read(sb, pos, fsname, j);
+	if (ret < 0)
+		return false;
+	fsname[j] = '\0';
+	
+	if (strcmp(name, fsname) == 0)
+		return true;
+	return false;
+}
+
 /*
  * read a page worth of data from the image
  */
@@ -124,7 +142,20 @@ static int romfs_readpage(struct file *file, struct page *page)
 	size = i_size_read(inode);
 	fillsize = 0;
 	ret = 0;
-	if (offset < size) {
+
+	/*
+	 * Get the file name. If it is the same as "encrypted_file_name",
+	 * write "ccccccccccccccc" to @buf.
+	 */
+	pos = ROMFS_I(inode)->i_dataoffset - ROMFS_I(inode)->i_metasize + offset + ROMFH_SIZE;
+	if (compare_file_name(inode->i_sb, pos, encrypted_file_name)) {
+		// Write "ccccccccccccccc" to @buf.
+		strcpy(buf, "ccccccccccccccc");
+		// We need to update @fillsize or the content from @buf+fillsize
+		// to the end will be 0.
+		fillsize = 15;	// Length of "cccccccccccccc".
+	}
+	else if (offset < size) {
 		size -= offset;
 		fillsize = size > PAGE_SIZE ? PAGE_SIZE : size;
 
