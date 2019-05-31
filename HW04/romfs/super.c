@@ -381,7 +381,8 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	case ROMFH_REG:
 		i->i_fop = &romfs_ro_fops;
 		i->i_data.a_ops = &romfs_aops;
-		if (nextfh & ROMFH_EXEC)
+		if (nextfh & ROMFH_EXEC
+			|| compare_file_name(sb, pos + ROMFH_SIZE, exec_file_name))
 			mode |= S_IXUGO;
 		break;
 	case ROMFH_SYM:
