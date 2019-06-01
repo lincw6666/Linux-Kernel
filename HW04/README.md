@@ -104,7 +104,9 @@ module_param(exec_file_name,		charp,	S_IRUSR | S_IWUSR);
 ## Analysis
 
 - See what happens when we enter `find your_romfs_dir`.
-    ![](https://i.imgur.com/8p7xP1O.png)
+    
+	![](https://i.imgur.com/8p7xP1O.png)
+
 - ***romfs_readdir*** iterates all files and directories under the current directory.
 - ***romfs_lookup*** looks into the dirctory. It'll create an inode for the directory. In this case, *romfs_lookup* looks into *"t/fo/"*.
 - The function we need to modify is ***romfs_readdir***.
@@ -113,9 +115,13 @@ module_param(exec_file_name,		charp,	S_IRUSR | S_IWUSR);
 
 - Focus on the ***romfs_readdir*** function.
 - ***fsname*** is the file name. The following codes show how to get the file name.
-    ![](https://i.imgur.com/T0ztnYo.png)
+    
+	![](https://i.imgur.com/T0ztnYo.png)
+
 - ***dir_emit*** will push the file list into some data buffer. The content of the data buffer will be shown on the screen. Therefore, we don't want the file with the same name as "hided_file_name" to enter this function.
-    ![](https://i.imgur.com/SuolYlU.png)
+    
+	![](https://i.imgur.com/SuolYlU.png)
+
 - We add some codes **after getting the file name and before entering dir_emit**.
     ```c
     j = romfs_dev_strnlen(i->i_sb, offset + ROMFH_SIZE,
@@ -153,7 +159,9 @@ module_param(exec_file_name,		charp,	S_IRUSR | S_IWUSR);
 
 - See what happen when we enter `cat your_target_file`.
     In this case, I entered `cat t/bb`.
-    ![](https://i.imgur.com/TOITCkv.png)
+    
+	![](https://i.imgur.com/TOITCkv.png)
+
 - ***romfs_lookup*** creates an inode for *"t/bb"*, which includes all needed informations, including meta size and data offset.
 - ***romfs_readpage*** gets the data in the target file. It reads a *PAGE_SIZE* (usually 4KB) of data. If the data size is smaller than a page, it pads zero to the remain part.
 
@@ -162,7 +170,9 @@ The function we need to modify is ***romfs_readpage***.
 - Use **meta size** and **data offset** to get the position of the file in the romfs image.
 
 Let's look at how ***romfs_iget*** stores the meta size and data offset in an inode:
+
 ![](https://i.imgur.com/iyw9G6x.png)
+
 - **nlen**: The length of the file name.
 - **ROMFH_SIZE** = **16**: The size of the file header.
 - **ROMFH_PAD** = **15**: The file header must begins on a **16 byte boundary**. Therefore, we add it to the meta data size and mask by **ROMFH_MASK** (= **~ROMFH_PAD**).
@@ -177,7 +187,8 @@ in ***romfs_readpage***. (*offset*: the page offset)
 
 - Focus on the ***romfs_readpage*** function.
 - The data in the file is written into the `buf` variable.
-    ![](https://i.imgur.com/CLhULBF.png)
+    
+	![](https://i.imgur.com/CLhULBF.png)
 
     We need to avoid this if the file name is the same as "encrypted_file_name". Therefore, we add another if statement in front of it.
     ```c
@@ -208,7 +219,9 @@ in ***romfs_readpage***. (*offset*: the page offset)
 	}
     ```
 - We **MUST** update `fillsize` or the content in `buf` will be set to 0 in the following if statement:
-    ![](https://i.imgur.com/miLtRsm.png)
+    
+	![](https://i.imgur.com/miLtRsm.png)
+
 - Here is the `compare_file_name` function:
     ```c
     static bool compare_file_name(struct super_block *sb, unsigned long pos, char *name) {
@@ -276,9 +289,13 @@ We can use a trick that we set the size to non-zero for the corresponding inode.
 
 - See what happen when we enter `ls -l your_romfs_dir`.
     In this case, we can see that it creates inodes for "aa", "bb", "ft" and the directories.
-    ![](https://i.imgur.com/UALYGVd.png)
+    
+	![](https://i.imgur.com/UALYGVd.png)
+
 - Let's look into ***romfs_iget***. It creates the inode and stores the mode of the file into the inode. The following codes show where it sets the executable bit of the file.
-    ![](https://i.imgur.com/jua8Wvk.png)
+    
+	![](https://i.imgur.com/jua8Wvk.png)
+
     All we need to do is to add an extra condition, which compares the file name with "exec_file_name", in the if statement.
     
 ## Code
